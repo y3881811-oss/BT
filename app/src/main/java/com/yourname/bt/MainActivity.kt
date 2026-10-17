@@ -18,6 +18,9 @@ import androidx.tv.foundation.lazy.list.TvLazyRow
 import androidx.tv.foundation.lazy.list.items
 import androidx.tv.material3.*
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Size
+import coil.size.Scale
 import com.yourname.bt.data.RetrofitClient
 import com.yourname.bt.data.VideoItem
 
@@ -59,9 +62,9 @@ fun HomeScreen() {
         contentAlignment = Alignment.Center
     ) {
         if (isLoading) {
-            Text(text = "正在加载热门视频...", color = Color.White)
+            Text(text = "正在加载热门视频...", color = Color.White, fontSize = 18.sp)
         } else if (errorMsg != null) {
-            Text(text = errorMsg!!, color = Color.Red)
+            Text(text = errorMsg!!, color = Color.Red, fontSize = 16.sp)
         } else {
             TvLazyRow(
                 modifier = Modifier.fillMaxWidth().padding(24.dp),
@@ -80,11 +83,17 @@ fun HomeScreen() {
 fun VideoCard(video: VideoItem) {
     Card(
         modifier = Modifier.width(240.dp),
-        onClick = { /* TODO: 播放逻辑 */ }
+        onClick = { /* 播放逻辑 */ }
     ) {
         Column {
+            // 【针对 512MB 内存优化】强制加载低分辨率图片
             AsyncImage(
-                model = video.pic,
+                model = ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                    .data(video.pic)
+                    .size(480, 270) // 限制加载分辨率，防爆内存
+                    .scale(Scale.FILL)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = video.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth().height(135.dp)
