@@ -10,13 +10,17 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
+import com.yourname.bt.data.DashMedia
 import com.yourname.bt.data.RetrofitClient
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 
 class PlayerActivity : AppCompatActivity() {
 
@@ -33,13 +37,16 @@ class PlayerActivity : AppCompatActivity() {
         loadingBar = findViewById(R.id.loadingBar)
         errorText = findViewById(R.id.errorText)
 
-        val bvid = intent.getStringExtra("bvid")
-        if (bvid.isNullOrEmpty()) {
-            showError("视频ID为空")
-            return
+        try {
+            val bvid = intent.getStringExtra("bvid")
+            if (bvid.isNullOrEmpty()) {
+                showError("视频ID为空")
+                return
+            }
+            loadVideoUrl(bvid)
+        } catch (e: Throwable) {
+            showError("初始化异常: ${e.message}")
         }
-
-        loadVideoUrl(bvid)
     }
 
     private fun loadVideoUrl(bvid: String) {
@@ -64,14 +71,17 @@ class PlayerActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                val videoStream = dash.video.maxByOrNull { it.id }
+                // 优先寻找 avc (H.264)，因为老电视最稳
+                val videoStream = dash.video.firstOrNull { it.codecs.contains("avc") } 
+                    ?: dash.video.firstOrNull() 
+
                 if (videoStream == null) {
                     showError("无法解析视频流")
                     return@launch
                 }
 
                 loadingBar.visibility = View.GONE
-                startPlay(videoStream, dash.audio?.maxByOrNull { it.bandwidth })
+                startPlay(videoStream, dash.audio?.firstOrNull())
 
             } catch (e: Exception) {
                 showError("网络异常: ${e.message}")
@@ -79,37 +89,71 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun startPlay(video: com.yourname.bt.data.DashMedia, audio: com.yourname.bt.data.DashMedia?) {
-        exoPlayer = ExoPlayer.Builder(this).build()
-        playerView.player = exoPlayer
-
-        val videoMediaItem = MediaItem.Builder()
-            .setUri(video.baseUrl)
-            .setMimeType(MimeTypes.VIDEO_MP4) 
-            .build()
-        val videoSource = ProgressiveMediaSource.Factory(DefaultDataSource.Factory(this)).createMediaSource(videoMediaItem)
-
-        val mediaSource = if (audio != null) {
-            val audioMediaItem = MediaItem.Builder()
-                .setUri(audio.baseUrl)
-                .setMimeType(MimeTypes.AUDIO_MP4)
+    private fun startPlay(video: DashMedia, audio: DashMedia?) {
+        try {
+            // 【核心修复】使用带防盗链 Header 的 OkHttp 数据源
+            val okHttpClient = OkHttpClient.Builder()
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
                 .build()
-            val audioSource = ProgressiveMediaSource.Factory(DefaultDataSource.Factory(this)).createMediaSource(audioMediaItem)
-            MergingMediaSource(videoSource, audioSource)
-        } else {
-            videoSource
-        }
 
-        exoPlayer?.setMediaSource(mediaSource)
-        exoPlayer?.prepare()
-        exoPlayer?.playWhenReady = true
+            val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+                .setDefaultRequestProperties(mapOf(
+                    "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Referer" to "https://www.bilibili.com/",
+                    "Origin" to "https://www.bilibili.com"
+                ))
 
-        exoPlayer?.addListener(object : Player.Listener {
-            override fun onPlayerError(error: PlaybackException) {
-                // 如果黑屏报错，这里会显示错误代码
-                showError("播放出错: ${error.errorCodeName}")
+            // 把数据源工厂交给 ExoPlayer
+            val mediaSourceFactory = DefaultMediaSourceFactory(httpDataSourceFactory)
+
+            exoPlayer = ExoPlayer.Builder(this)
+                .setMediaSourceFactory(mediaSourceFactory)
+                .build()
+            playerView.player = exoPlayer
+
+            // 处理视频 URL，防止老电视对某些 https 节点握手失败
+            var finalVideoUrl = video.baseUrl
+            var finalAudioUrl = audio?.baseUrl
+            
+            // 如果报错是网络连接失败，可能是 https 证书问题，尝试降级为 http
+            // 这里我们为了稳妥，直接强制尝试使用 http 格式（如果 B 站支持的话）
+            if (finalVideoUrl.startsWith("https://")) {
+                finalVideoUrl = finalVideoUrl.replaceFirst("https://", "http://")
             }
-        })
+            if (finalAudioUrl != null && finalAudioUrl.startsWith("https://")) {
+                finalAudioUrl = finalAudioUrl.replaceFirst("https://", "http://")
+            }
+
+            val videoMediaItem = MediaItem.Builder()
+                .setUri(finalVideoUrl)
+                .setMimeType(MimeTypes.VIDEO_MP4) 
+                .build()
+            val videoSource = ProgressiveMediaSource.Factory(httpDataSourceFactory).createMediaSource(videoMediaItem)
+
+            val mediaSource = if (audio != null && finalAudioUrl != null) {
+                val audioMediaItem = MediaItem.Builder()
+                    .setUri(finalAudioUrl)
+                    .setMimeType(MimeTypes.AUDIO_MP4)
+                    .build()
+                val audioSource = ProgressiveMediaSource.Factory(httpDataSourceFactory).createMediaSource(audioMediaItem)
+                MergingMediaSource(videoSource, audioSource)
+            } else {
+                videoSource
+            }
+
+            exoPlayer?.setMediaSource(mediaSource)
+            exoPlayer?.prepare()
+            exoPlayer?.playWhenReady = true
+
+            exoPlayer?.addListener(object : Player.Listener {
+                override fun onPlayerError(error: PlaybackException) {
+                    showError("播放出错: ${error.errorCodeName}\n${error.cause?.message}")
+                }
+            })
+        } catch (e: Throwable) {
+            showError("播放器异常: ${e.message}")
+        }
     }
 
     private fun showError(msg: String) {
@@ -120,7 +164,9 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        exoPlayer?.release()
-        exoPlayer = null
+        try {
+            exoPlayer?.release()
+            exoPlayer = null
+        } catch (e: Exception) {}
     }
 }
