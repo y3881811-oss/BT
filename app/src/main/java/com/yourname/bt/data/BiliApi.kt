@@ -3,7 +3,7 @@ package com.yourname.bt.data
 import android.content.Context
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import retrofit2.Call // 新增 Call 导入
+import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
@@ -25,7 +25,6 @@ interface BiliApi {
         @Query("fnval") fnval: Int = 16
     ): PlayUrlResponse
 
-    // 【修改】去掉 suspend，改为同步 Call，供拦截器内部调用
     @GET("x/web-interface/nav")
     fun getNavInfo(): Call<NavResponse>
 
@@ -44,7 +43,6 @@ object RetrofitClient {
 
     private var wbiImgKey: String = ""
     private var wbiSubKey: String = ""
-    private var lastKeyFetchTime: Long = 0
 
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -52,14 +50,21 @@ object RetrofitClient {
         .addInterceptor { chain ->
             var request = chain.request()
             val url = request.url
+            
+            // 基础请求头
+            val requestBuilder = request.newBuilder()
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .header("Referer", "https://www.bilibili.com")
 
-            // 1. passport 域名直接放行
-            if (url.host.contains("passport.bilibili.com")) {
-                return@addInterceptor chain.proceed(request)
-            }
+            // 注入 Cookie
+            val savedCookie = if (appContext != null) UserPrefs.getCookie(appContext!!) else ""
+            // 如果没登录，强行塞一个基础 buvid3 骗过风控
+            val finalCookie = if (savedCookie.isNotEmpty()) savedCookie else "buvid3=infoc"
+            requestBuilder.header("Cookie", finalCookie)
 
-            // 2. api 域名进行 WBI 签名
-            if (url.host.contains("api.bilibili.com")) {
+            // ================= 核心逻辑 =================
+            // 只有包含 "wbi" 的接口（比如 playurl）才进行签名
+            if (url.host.contains("api.bilibili.com") && url.encodedPath.contains("wbi")) {
                 if (wbiImgKey.isEmpty()) {
                     refreshWbiKeys()
                 }
@@ -71,45 +76,48 @@ object RetrofitClient {
                     }
                     
                     val signedParams = WbiSigner.sign(originalParams, wbiImgKey, wbiSubKey)
-                    
                     val newUrlBuilder = url.newBuilder()
-                    // 【修复】正确清除旧参数的方法
                     for (name in url.queryParameterNames) {
                         newUrlBuilder.removeAllQueryParameters(name)
                     }
-                    // 添加签名后的参数
                     signedParams.forEach { (key, value) ->
                         newUrlBuilder.addQueryParameter(key, value)
                     }
                     
-                    request = request.newBuilder()
-                        .url(newUrlBuilder.build())
-                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                        .header("Referer", "https://www.bilibili.com")
-                        .build()
+                    requestBuilder.url(newUrlBuilder.build())
                 }
             }
+            // ============================================
 
-            val savedCookie = if (appContext != null) UserPrefs.getCookie(appContext!!) else ""
-            if (savedCookie.isNotEmpty()) {
-                request = request.newBuilder().header("Cookie", savedCookie).build()
-            }
-
-            chain.proceed(request)
+            chain.proceed(requestBuilder.build())
         }
         .build()
 
     private fun refreshWbiKeys() {
         try {
-            // 【修复】新建临时 Retrofit（不带拦截器），防止在拦截器内部发起请求导致死循环
             val tempRetrofit = Retrofit.Builder()
                 .baseUrl(API_BASE_URL)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
             val tempApi = tempRetrofit.create(BiliApi::class.java)
             
-            // 同步执行
-            val response = tempApi.getNavInfo().execute()
+            // 获取Key时也必须带上 UA 和 Cookie
+            val client = OkHttpClient.Builder()
+                .addInterceptor { chain ->
+                    chain.proceed(chain.request().newBuilder()
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                        .header("Cookie", "buvid3=infoc")
+                        .build())
+                }.build()
+            
+            val apiWithHeader = Retrofit.Builder()
+                .baseUrl(API_BASE_URL)
+                .client(client)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+                .create(BiliApi::class.java)
+
+            val response = apiWithHeader.getNavInfo().execute()
             if (response.isSuccessful) {
                 val navData = response.body()?.data
                 val imgUrl = navData?.wbiImg?.imgUrl ?: ""
@@ -117,7 +125,6 @@ object RetrofitClient {
                 if (imgUrl.isNotEmpty() && subUrl.isNotEmpty()) {
                     wbiImgKey = imgUrl.substringAfterLast("/").substringBefore(".")
                     wbiSubKey = subUrl.substringAfterLast("/").substringBefore(".")
-                    lastKeyFetchTime = System.currentTimeMillis()
                 }
             }
         } catch (e: Exception) {
