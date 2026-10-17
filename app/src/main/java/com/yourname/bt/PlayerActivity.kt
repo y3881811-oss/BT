@@ -17,7 +17,7 @@ import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
 import com.yourname.bt.data.DashMedia
-import com.yourname.bt.data.RetrofitClient
+import com.yourname.bt.data.NetworkModule
 import com.yourname.bt.data.UserPrefs
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
@@ -53,15 +53,15 @@ class PlayerActivity : AppCompatActivity() {
     private fun loadVideoUrl(bvid: String) {
         lifecycleScope.launch {
             try {
-                val cidResponse = RetrofitClient.api.getCid(bvid)
+                // 使用 NetworkModule.api
+                val cidResponse = NetworkModule.api.getCid(bvid)
                 if (cidResponse.code != 0 || cidResponse.data.isEmpty()) {
                     showError("获取 CID 失败")
                     return@launch
                 }
                 val cid = cidResponse.data[0].cid
 
-                // 接口已更新为 WBI 版本，拦截器会自动加签
-                val playResponse = RetrofitClient.api.getPlayUrl(bvid, cid)
+                val playResponse = NetworkModule.api.getPlayUrl(bvid, cid)
                 if (playResponse.code != 0) {
                     showError("获取播放地址失败: ${playResponse.code}")
                     return@launch
@@ -73,6 +73,7 @@ class PlayerActivity : AppCompatActivity() {
                     return@launch
                 }
 
+                // 寻找 AVC 编码
                 val videoStream = dash.video.firstOrNull { it.codecs.contains("avc") } 
                     ?: dash.video.firstOrNull() 
 
@@ -98,6 +99,7 @@ class PlayerActivity : AppCompatActivity() {
                 .followRedirects(true)
                 .build()
 
+            // 为 ExoPlayer 下载视频流时注入登录 Cookie
             val localCookie = UserPrefs.getCookie(this)
 
             val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
@@ -113,12 +115,9 @@ class PlayerActivity : AppCompatActivity() {
                 .build()
             playerView.player = exoPlayer
 
-            // 清理转义字符
-            var finalVideoUrl = video.baseUrl.replace("\\u0026", "&")
-            var finalAudioUrl = audio?.baseUrl?.replace("\\u0026", "&")
-
-            // 老电视兼容：如果 https 失败，可尝试 http（但现代B站多强制https）
-            // 这里保留原样，因为强制http可能导致403
+            // 清理 URL 转义
+            val finalVideoUrl = video.baseUrl.replace("\\u0026", "&")
+            val finalAudioUrl = audio?.baseUrl?.replace("\\u0026", "&")
 
             val videoMediaItem = MediaItem.Builder()
                 .setUri(finalVideoUrl)
