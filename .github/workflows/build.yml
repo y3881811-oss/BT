@@ -4,8 +4,7 @@ on:
   push:
     branches: [ "main", "master" ]
   workflow_dispatch:
-  # 【新增】定时任务 (Cron 表达式)
-  # 这里的 "0 18 * * *" 代表 UTC 时间的 18:00，即【北京时间每天凌晨 2:00】自动构建
+  # 定时任务：UTC 18:00 (北京时间凌晨 2:00)
   schedule:
     - cron: '0 18 * * *'
 
@@ -25,12 +24,20 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 缓存签名文件 (保证每次安装包签名一致)
+      # 1. 尝试恢复缓存的签名文件
       - name: Cache Android Debug Keystore
+        id: cache-keystore
         uses: actions/cache@v3
         with:
           path: ~/.android/debug.keystore
           key: ${{ runner.os }}-android-debug-keystore-v1
+
+      # 2. 【核心修复】如果缓存没命中（找不到），就自动生成一个固定签名的文件
+      - name: Generate Fixed Debug Keystore
+        if: steps.cache-keystore.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.android
+          keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -56,7 +63,6 @@ jobs:
       - name: Create Release and Upload APK
         uses: softprops/action-gh-release@v1
         with:
-          # 如果今天跑过了，会加上 run_number 区分，不会冲突
           tag_name: v${{ steps.date.outputs.date }}-${{ github.run_number }}
           name: Release v${{ steps.date.outputs.date }}-${{ github.run_number }}
           body: |
