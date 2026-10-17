@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 允许网络请求 -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 512MB 设备通常网络很慢，加入网络状态权限用于容错 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- 声明这是 TV 应用，且不需要触摸屏 -->
     <uses-feature
         android:name="android.software.leanback"
         android:required="true" />
@@ -13,7 +13,8 @@
         android:required="false" />
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:largeHeap="true"
         android:label="BT-Kotlin"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.NoActionBar">
