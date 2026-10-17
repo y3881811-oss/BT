@@ -15,7 +15,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.NoActionBar">
 
-        <!-- 主界面 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -28,9 +27,17 @@
             </intent-filter>
         </activity>
 
-        <!-- 【注意检查这里】播放界面必须在这里注册，且必须在 <application> 标签内部 -->
+        <!-- 播放页 -->
         <activity
             android:name=".PlayerActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+        <!-- 登录页 -->
+        <activity
+            android:name=".LoginActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:screenOrientation="landscape"
