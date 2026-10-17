@@ -10,11 +10,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
-import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.yourname.bt.data.RetrofitClient
 import kotlinx.coroutines.launch
@@ -65,7 +64,6 @@ class PlayerActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                // 获取最高画质的视频流
                 val videoStream = dash.video.maxByOrNull { it.id }
                 if (videoStream == null) {
                     showError("无法解析视频流")
@@ -82,18 +80,15 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun startPlay(video: com.yourname.bt.data.DashMedia, audio: com.yourname.bt.data.DashMedia?) {
-        // 1. 初始化 ExoPlayer
         exoPlayer = ExoPlayer.Builder(this).build()
         playerView.player = exoPlayer
 
-        // 2. 创建视频源和音频源 (需要指定 MIME 类型，否则可能会报错)
         val videoMediaItem = MediaItem.Builder()
             .setUri(video.baseUrl)
-            .setMimeType(MimeTypes.VIDEO_MP4) // 假设为普通 mp4 分段，如果报错可换成 MimeTypes.VIDEO_MEDIA
+            .setMimeType(MimeTypes.VIDEO_MP4) 
             .build()
         val videoSource = ProgressiveMediaSource.Factory(DefaultDataSource.Factory(this)).createMediaSource(videoMediaItem)
 
-        // 3. 如果有音频流，就把音视频合并
         val mediaSource = if (audio != null) {
             val audioMediaItem = MediaItem.Builder()
                 .setUri(audio.baseUrl)
@@ -105,14 +100,13 @@ class PlayerActivity : AppCompatActivity() {
             videoSource
         }
 
-        // 4. 装载并播放
         exoPlayer?.setMediaSource(mediaSource)
         exoPlayer?.prepare()
         exoPlayer?.playWhenReady = true
 
-        // 5. 监听报错
         exoPlayer?.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
+                // 如果黑屏报错，这里会显示错误代码
                 showError("播放出错: ${error.errorCodeName}")
             }
         })
@@ -126,7 +120,7 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        exoPlayer?.release() // 必须释放播放器，防止 512MB 电视内存泄漏
+        exoPlayer?.release()
         exoPlayer = null
     }
 }
