@@ -18,6 +18,7 @@ object NetworkModule {
     private var wbiSubKey: String = ""
     private var realBuvid3: String = ""
     private var realBuvid4: String = ""
+    private var realBiliTicket: String = ""
 
     private val baseClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -28,8 +29,10 @@ object NetworkModule {
         appContext = context.applicationContext
         fetchBuvid()
         fetchWbiKeys()
+        fetchBiliTicket() // 新增：获取 bili_ticket
     }
 
+    // 1. 动态获取设备指纹
     private fun fetchBuvid() {
         Thread {
             try {
@@ -51,6 +54,7 @@ object NetworkModule {
         }.start()
     }
 
+    // 2. 获取 WBI 签名密钥
     private fun fetchWbiKeys() {
         Thread {
             try {
@@ -74,6 +78,31 @@ object NetworkModule {
         }.start()
     }
 
+    // 3. 新增：获取 bili_ticket
+    private fun fetchBiliTicket() {
+        Thread {
+            try {
+                // 等待 buvid 获取完成
+                Thread.sleep(500)
+                val request = Request.Builder()
+                    .url("https://api.bilibili.com/bapis/bilibili.api.ticket.v1.Ticket/GenWebTicket")
+                    .header("User-Agent", UA)
+                    .header("Referer", "https://www.bilibili.com")
+                    .header("Cookie", getCurrentCookie())
+                    .build()
+                baseClient.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val json = JSONObject(response.body?.string() ?: "")
+                        if (json.optInt("code") == 0) {
+                            val data = json.getJSONObject("data")
+                            realBiliTicket = data.optString("ticket")
+                        }
+                    }
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+        }.start()
+    }
+
     private fun getCurrentCookie(): String {
         val saved = if (appContext != null) UserPrefs.getCookie(appContext!!) else ""
         return if (saved.isNotEmpty()) saved else getGuestCookie()
@@ -81,9 +110,11 @@ object NetworkModule {
 
     private fun getGuestCookie(): String {
         val b3 = realBuvid3.ifEmpty { "infoc" }
-        return "buvid3=$b3; buvid4=$realBuvid4; b_nut=${System.currentTimeMillis() / 1000};"
+        val ticketPart = if (realBiliTicket.isNotEmpty()) "bili_ticket=$realBiliTicket;" else ""
+        return "buvid3=$b3; buvid4=$realBuvid4; b_nut=${System.currentTimeMillis() / 1000}; $ticketPart"
     }
 
+    // 4. 核心拦截器：补全所有标准请求头
     private fun createInterceptor(): Interceptor {
         return Interceptor { chain ->
             var request = chain.request()
@@ -91,9 +122,12 @@ object NetworkModule {
             val builder = request.newBuilder()
                 .header("User-Agent", UA)
                 .header("Referer", "https://www.bilibili.com")
-                .header("Cookie", getCurrentCookie())
                 .header("Origin", "https://www.bilibili.com")
+                .header("Accept", "application/json, text/plain, */*")
+                .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+                .header("Cache-Control", "no-cache")
                 .header("X-Requested-With", "XMLHttpRequest")
+                .header("Cookie", getCurrentCookie())
 
             if (url.host.contains("api.bilibili.com") && url.encodedPath.contains("wbi")) {
                 if (wbiImgKey.isEmpty()) {
@@ -117,6 +151,7 @@ object NetworkModule {
         }
     }
 
+    // ... createClient 和 api/passportApi 的代码保持不变 ...
     private fun createClient(): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
         return baseClient.newBuilder()
