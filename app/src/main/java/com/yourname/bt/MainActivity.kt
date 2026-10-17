@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 初始化 Context 供网络层读取 Cookie
+        // 初始化 Context
         RetrofitClient.appContext = applicationContext
 
         recyclerView = findViewById(R.id.recyclerView)
@@ -38,12 +38,6 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, LoginActivity::class.java))
         }
 
-        loadData()
-    }
-
-    // 从登录页回来时刷新一下（其实不刷新也行，重新进APP就会生效）
-    override fun onResume() {
-        super.onResume()
         loadData()
     }
 
