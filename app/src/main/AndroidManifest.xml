@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- 允许网络请求 -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- 声明这是 TV 应用，且不需要触摸屏 -->
@@ -23,9 +24,7 @@
             android:screenOrientation="landscape">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-                <!-- TV 遥控器启动入口 -->
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-                <!-- 兼容手机启动 -->
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
