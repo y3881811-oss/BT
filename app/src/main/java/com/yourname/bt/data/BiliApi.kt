@@ -10,7 +10,6 @@ interface BiliApi {
     @GET("x/player/pagelist")
     suspend fun getCid(@Query("bvid") bvid: String): PageListResponse
 
-    // 注意路径带有 wbi，NetworkModule 会自动识别并加签
     @GET("x/player/wbi/playurl")
     suspend fun getPlayUrl(
         @Query("bvid") bvid: String,
@@ -24,4 +23,8 @@ interface BiliApi {
 
     @GET("x/passport-login/web/qrcode/poll")
     suspend fun pollQrCode(@Query("qrcode_key") key: String): QrPollResponse
+
+    // 【新增】获取用户信息
+    @GET("x/web-interface/nav")
+    suspend fun getUserInfo(): UserInfoResponse
 }
