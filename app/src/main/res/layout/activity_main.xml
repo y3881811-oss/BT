@@ -5,7 +5,6 @@
     android:orientation="vertical"
     android:background="#141414">
 
-    <!-- 新增登录入口 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -18,7 +17,15 @@
         
         <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
         
-        <!-- 登录按钮 -->
+        <!-- 个人中心按钮 -->
+        <Button
+            android:id="@+id/btnUser"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_marginEnd="16dp"
+            android:text="个人中心"
+            android:textSize="14sp"/>
+            
         <Button
             android:id="@+id/btnLogin"
             android:layout_width="wrap_content"
@@ -30,7 +37,6 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
-        <!-- 之前的 ProgressBar, errorText, RecyclerView 等代码保持不变 -->
         <ProgressBar
             android:id="@+id/loadingBar"
             android:layout_width="wrap_content"
