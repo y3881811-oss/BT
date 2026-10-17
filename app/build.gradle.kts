@@ -2,7 +2,6 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -16,7 +15,6 @@ android {
         versionCode = 1
         versionName = "v0.1.0"
 
-        // 强制包含 32 位 (armeabi-v7a) 和 64 位
         ndk {
             abiFilters.add("armeabi-v7a")
             abiFilters.add("arm64-v8a")
@@ -39,6 +37,11 @@ android {
     buildFeatures {
         compose = true
     }
+    
+    // 开启 zipAlign，稍微减小安装包体积
+    packaging {
+        resources.excludes.add("META-INF/*")
+    }
 }
 
 dependencies {
@@ -50,15 +53,12 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     
-    // TV 专属 Compose 库
     implementation("androidx.tv:tv-foundation:1.0.0")
     implementation("androidx.tv:tv-material:1.1.0")
 
-    // 网络请求与解析库
+    // 【修改】改用极其稳定的 Retrofit + Gson
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-kotlinx-serialization:2.9.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     
     // 图片加载库 (Coil)
     implementation("io.coil-kt:coil-compose:2.5.0")
