@@ -15,9 +15,14 @@ data class DashData(val video: List<DashMedia>, val audio: List<DashMedia>?)
 data class DashMedia(val id: Int, val baseUrl: String, val codecs: String, val bandwidth: Int)
 data class Durl(val url: String)
 
-// ======== 新增：扫码登录模型 ========
+// 扫码登录模型
 data class QrCodeResponse(val code: Int, val data: QrCodeData)
 data class QrCodeData(val url: String, val qrcode_key: String)
 
 data class QrPollResponse(val code: Int, val data: QrPollData)
 data class QrPollData(val url: String, val refresh_token: String, val timestamp: Long, val code: Int, val message: String)
+
+// 新增：导航信息（用于获取 WBI Keys）
+data class NavResponse(val code: Int, val data: NavData)
+data class NavData(val wbiImg: WbiImg?)
+data class WbiImg(val imgUrl: String, val subUrl: String)
