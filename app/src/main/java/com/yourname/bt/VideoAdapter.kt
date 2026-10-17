@@ -20,6 +20,8 @@ class VideoAdapter(
         val coverImage: ImageView = view.findViewById(R.id.coverImage)
         val titleText: TextView = view.findViewById(R.id.titleText)
         val ownerText: TextView = view.findViewById(R.id.ownerText)
+        val durationText: TextView = view.findViewById(R.id.durationText)
+        val statText: TextView = view.findViewById(R.id.statText)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VideoViewHolder {
@@ -33,10 +35,25 @@ class VideoAdapter(
         holder.titleText.text = video.title
         holder.ownerText.text = video.owner.name
 
-        // 针对 512MB 内存优化：Glide 会自动处理低内存情况，并限制图片尺寸
+        // 时长格式化：120 -> 02:00
+        val minutes = video.duration / 60
+        val seconds = video.duration % 60
+        holder.durationText.text = String.format("%02d:%02d", minutes, seconds)
+
+        // 播放量格式化：32000 -> 3.2万
+        val viewStr = if (video.stat.view >= 10000) {
+            String.format("%.1f万", video.stat.view / 10000f)
+        } else {
+            video.stat.view.toString()
+        }
+        holder.statText.text = "▶ $viewStr  💬 ${video.stat.danmaku}"
+
+        // 给图片加上圆角
+        val roundOptions = RequestOptions().transform(RoundedCorners(12))
+
         Glide.with(holder.itemView.context)
             .load(video.pic)
-            .apply(RequestOptions().override(480, 270)) // 限制解码分辨率，防爆内存
+            .apply(roundOptions.override(480, 270))
             .into(holder.coverImage)
 
         holder.itemView.setOnClickListener {
