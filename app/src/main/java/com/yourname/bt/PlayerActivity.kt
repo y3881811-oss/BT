@@ -60,6 +60,7 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 val cid = cidResponse.data[0].cid
 
+                // 接口已更新为 WBI 版本，拦截器会自动加签
                 val playResponse = RetrofitClient.api.getPlayUrl(bvid, cid)
                 if (playResponse.code != 0) {
                     showError("获取播放地址失败: ${playResponse.code}")
@@ -97,7 +98,6 @@ class PlayerActivity : AppCompatActivity() {
                 .followRedirects(true)
                 .build()
 
-            // 读取本地 Cookie 并注入
             val localCookie = UserPrefs.getCookie(this)
 
             val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
@@ -114,8 +114,11 @@ class PlayerActivity : AppCompatActivity() {
             playerView.player = exoPlayer
 
             // 清理转义字符
-            val finalVideoUrl = video.baseUrl.replace("\\u0026", "&")
-            val finalAudioUrl = audio?.baseUrl?.replace("\\u0026", "&")
+            var finalVideoUrl = video.baseUrl.replace("\\u0026", "&")
+            var finalAudioUrl = audio?.baseUrl?.replace("\\u0026", "&")
+
+            // 老电视兼容：如果 https 失败，可尝试 http（但现代B站多强制https）
+            // 这里保留原样，因为强制http可能导致403
 
             val videoMediaItem = MediaItem.Builder()
                 .setUri(finalVideoUrl)
