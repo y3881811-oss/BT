@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.ui.PlayerView
 import com.yourname.bt.data.DashMedia
 import com.yourname.bt.data.RetrofitClient
+import com.yourname.bt.data.UserPrefs
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -71,7 +72,6 @@ class PlayerActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                // 优先寻找 avc (H.264)，因为老电视最稳
                 val videoStream = dash.video.firstOrNull { it.codecs.contains("avc") } 
                     ?: dash.video.firstOrNull() 
 
@@ -91,39 +91,31 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun startPlay(video: DashMedia, audio: DashMedia?) {
         try {
-            // 【核心修复】使用带防盗链 Header 的 OkHttp 数据源
             val okHttpClient = OkHttpClient.Builder()
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(15, TimeUnit.SECONDS)
+                .followRedirects(true)
                 .build()
+
+            // 读取本地 Cookie 并注入
+            val localCookie = UserPrefs.getCookie(this)
 
             val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
                 .setDefaultRequestProperties(mapOf(
                     "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                     "Referer" to "https://www.bilibili.com/",
-                    "Origin" to "https://www.bilibili.com"
+                    "Cookie" to localCookie
                 ))
 
-            // 把数据源工厂交给 ExoPlayer
             val mediaSourceFactory = DefaultMediaSourceFactory(httpDataSourceFactory)
-
             exoPlayer = ExoPlayer.Builder(this)
                 .setMediaSourceFactory(mediaSourceFactory)
                 .build()
             playerView.player = exoPlayer
 
-            // 处理视频 URL，防止老电视对某些 https 节点握手失败
-            var finalVideoUrl = video.baseUrl
-            var finalAudioUrl = audio?.baseUrl
-            
-            // 如果报错是网络连接失败，可能是 https 证书问题，尝试降级为 http
-            // 这里我们为了稳妥，直接强制尝试使用 http 格式（如果 B 站支持的话）
-            if (finalVideoUrl.startsWith("https://")) {
-                finalVideoUrl = finalVideoUrl.replaceFirst("https://", "http://")
-            }
-            if (finalAudioUrl != null && finalAudioUrl.startsWith("https://")) {
-                finalAudioUrl = finalAudioUrl.replaceFirst("https://", "http://")
-            }
+            // 清理转义字符
+            val finalVideoUrl = video.baseUrl.replace("\\u0026", "&")
+            val finalAudioUrl = audio?.baseUrl?.replace("\\u0026", "&")
 
             val videoMediaItem = MediaItem.Builder()
                 .setUri(finalVideoUrl)
