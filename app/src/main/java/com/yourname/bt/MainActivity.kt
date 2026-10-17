@@ -1,4 +1,4 @@
-package com.yourname.bt
+package com.yourname.bt // 【请修改】你的包名
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -10,20 +10,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                // 一个最基础的 TV 焦点界面
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Button(onClick = { /* 后续写播放逻辑 */ }) {
-                        Text("Hello TV - Kotlin 重写版")
+                    Button(onClick = { /* 预留点击事件 */ }) {
+                        Text("Hello TV - 32位 Kotlin 重写版")
                     }
                 }
             }
