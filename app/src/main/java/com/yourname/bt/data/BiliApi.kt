@@ -10,12 +10,17 @@ interface BiliApi {
     @GET("x/player/pagelist")
     suspend fun getCid(@Query("bvid") bvid: String): PageListResponse
 
+    // BiliPai 风格的完整播放参数
     @GET("x/player/wbi/playurl")
     suspend fun getPlayUrl(
         @Query("bvid") bvid: String,
         @Query("cid") cid: Long,
         @Query("qn") qn: Int = 80,
-        @Query("fnval") fnval: Int = 16
+        @Query("fnval") fnval: Int = 16,
+        @Query("fnver") fnver: Int = 0,
+        @Query("fourk") fourk: Int = 1,
+        @Query("platform") platform: String = "pc",
+        @Query("session") session: String = ""
     ): PlayUrlResponse
 
     @GET("x/passport-login/web/qrcode/generate")
@@ -24,7 +29,6 @@ interface BiliApi {
     @GET("x/passport-login/web/qrcode/poll")
     suspend fun pollQrCode(@Query("qrcode_key") key: String): QrPollResponse
 
-    // 【新增】获取用户信息
     @GET("x/web-interface/nav")
     suspend fun getUserInfo(): UserInfoResponse
 }
