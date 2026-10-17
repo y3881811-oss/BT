@@ -20,9 +20,24 @@ android {
         }
     }
 
+    // 【新增】显式配置签名，指向固定的 debug.keystore
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false
+            // 个人自用暂时也用 debug 签名，保证可以直接覆盖安装
+            signingConfig = signingConfigs.getByName("debug") 
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -36,21 +51,19 @@ android {
 }
 
 dependencies {
-    // 基础 AndroidX 依赖
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
-    
-    // 【修复】引入 lifecycle 库，解决 lifecycleScope 报错
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
-    
-    // 传统 View 核心组件：RecyclerView
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     
-    // 网络请求与解析库
+    val media3Version = "1.2.1"
+    implementation("androidx.media3:media3-exoplayer:$media3Version")
+    implementation("androidx.media3:media3-exoplayer-dash:$media3Version")
+    implementation("androidx.media3:media3-ui:$media3Version")
+
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     
-    // 图片加载库 (Glide)
     implementation("com.github.bumptech.glide:glide:4.16.0")
 }
