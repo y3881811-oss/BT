@@ -10,7 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.yourname.bt.data.RetrofitClient
+import com.yourname.bt.data.NetworkModule
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -24,8 +24,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 初始化 Context
-        RetrofitClient.appContext = applicationContext
+        // 【核心】初始化网络模块
+        NetworkModule.init(this)
 
         recyclerView = findViewById(R.id.recyclerView)
         loadingBar = findViewById(R.id.loadingBar)
@@ -44,7 +44,8 @@ class MainActivity : AppCompatActivity() {
     private fun loadData() {
         lifecycleScope.launch {
             try {
-                val response = RetrofitClient.api.getPopularVideos()
+                // 使用 NetworkModule.api
+                val response = NetworkModule.api.getPopularVideos()
                 if (response.code == 0) {
                     val videoList = response.data.list
                     
