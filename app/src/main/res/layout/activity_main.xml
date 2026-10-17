@@ -5,21 +5,32 @@
     android:orientation="vertical"
     android:background="#141414">
 
-    <!-- 顶部简单分类栏（UI占位，暂未做点击切换逻辑） -->
+    <!-- 新增登录入口 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="16dp">
+        android:padding="16dp"
+        android:gravity="center_vertical">
+        
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="推荐" android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:layout_marginEnd="24dp"/>
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="热门" android:textColor="#888888" android:textSize="20sp" android:layout_marginEnd="24dp"/>
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="科技" android:textColor="#888888" android:textSize="20sp" android:layout_marginEnd="24dp"/>
+        
+        <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
+        
+        <!-- 登录按钮 -->
+        <Button
+            android:id="@+id/btnLogin"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="扫码登录"
+            android:textSize="14sp"/>
     </LinearLayout>
 
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
-
+        <!-- 之前的 ProgressBar, errorText, RecyclerView 等代码保持不变 -->
         <ProgressBar
             android:id="@+id/loadingBar"
             android:layout_width="wrap_content"
@@ -44,5 +55,4 @@
             android:clipToPadding="false"
             android:visibility="gone" />
     </FrameLayout>
-
 </LinearLayout>
