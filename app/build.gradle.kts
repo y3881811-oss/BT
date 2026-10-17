@@ -20,7 +20,6 @@ android {
         }
     }
 
-    // 【新增】显式配置签名，指向固定的 debug.keystore
     signingConfigs {
         getByName("debug") {
             storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
@@ -36,7 +35,6 @@ android {
         }
         release {
             isMinifyEnabled = false
-            // 个人自用暂时也用 debug 签名，保证可以直接覆盖安装
             signingConfig = signingConfigs.getByName("debug") 
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -61,6 +59,10 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-exoplayer-dash:$media3Version")
     implementation("androidx.media3:media3-ui:$media3Version")
+    // 【新增】引入 OkHttp 数据源，用于解决视频流防盗链报错
+    implementation("androidx.media3:media3-datasource-okhttp:$media3Version")
+    
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
