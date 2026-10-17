@@ -8,7 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
-import com.yourname.bt.data.RetrofitClient
+import com.yourname.bt.data.NetworkModule
 import com.yourname.bt.data.UserPrefs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -31,8 +31,7 @@ class LoginActivity : AppCompatActivity() {
     private fun startLoginFlow() {
         lifecycleScope.launch {
             try {
-                // 【关键】使用 passportApi 而不是 api
-                val qrRes = RetrofitClient.passportApi.getQrCode()
+                val qrRes = NetworkModule.passportApi.getQrCode()
                 if (qrRes.code != 0) {
                     tipText.text = "获取二维码失败"
                     return@launch
@@ -44,11 +43,10 @@ class LoginActivity : AppCompatActivity() {
 
                 while (true) {
                     delay(2000)
-                    // 【关键】轮询也使用 passportApi
-                    val pollRes = RetrofitClient.passportApi.pollQrCode(qrKey)
+                    val pollRes = NetworkModule.passportApi.pollQrCode(qrKey)
                     if (pollRes.code == 0) {
                         when (pollRes.data.code) {
-                            0 -> {
+                            0 -> { // 成功
                                 tipText.text = "登录成功！"
                                 saveCookiesFromUrl(pollRes.data.url)
                                 delay(1000)
