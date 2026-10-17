@@ -1,10 +1,10 @@
 package com.yourname.bt
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -26,7 +26,6 @@ class MainActivity : AppCompatActivity() {
         loadingBar = findViewById(R.id.loadingBar)
         errorText = findViewById(R.id.errorText)
 
-        // 【修改】设置网格布局，每行 4 个 (TV 端横屏通常 4-6 个比较合适)
         recyclerView.layoutManager = GridLayoutManager(this, 4)
 
         loadData()
@@ -42,8 +41,11 @@ class MainActivity : AppCompatActivity() {
                     loadingBar.visibility = View.GONE
                     recyclerView.visibility = View.VISIBLE
                     
+                    // 【看这里】这里必须是 Intent 跳转，不能是 Toast！
                     recyclerView.adapter = VideoAdapter(videoList) { video ->
-                        Toast.makeText(this@MainActivity, "点击了: ${video.title}", Toast.LENGTH_SHORT).show()
+                        val intent = Intent(this@MainActivity, PlayerActivity::class.java)
+                        intent.putExtra("bvid", video.bvid)
+                        startActivity(intent)
                     }
                 } else {
                     showError("请求失败: ${response.message}")
