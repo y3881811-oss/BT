@@ -7,10 +7,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.yourname.bt.data.RetrofitClient
-import com.yourname.bt.data.VideoItem
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -27,8 +26,8 @@ class MainActivity : AppCompatActivity() {
         loadingBar = findViewById(R.id.loadingBar)
         errorText = findViewById(R.id.errorText)
 
-        // 设置横向排列的列表
-        recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        // 【修改】设置网格布局，每行 4 个 (TV 端横屏通常 4-6 个比较合适)
+        recyclerView.layoutManager = GridLayoutManager(this, 4)
 
         loadData()
     }
@@ -40,13 +39,10 @@ class MainActivity : AppCompatActivity() {
                 if (response.code == 0) {
                     val videoList = response.data.list
                     
-                    // 数据加载成功，隐藏提示，显示列表
                     loadingBar.visibility = View.GONE
                     recyclerView.visibility = View.VISIBLE
                     
-                    // 绑定适配器
                     recyclerView.adapter = VideoAdapter(videoList) { video ->
-                        // 这里就是点击事件，我们后续在这里写播放逻辑
                         Toast.makeText(this@MainActivity, "点击了: ${video.title}", Toast.LENGTH_SHORT).show()
                     }
                 } else {
