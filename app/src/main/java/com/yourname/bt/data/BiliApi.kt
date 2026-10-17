@@ -1,9 +1,9 @@
 package com.yourname.bt.data
 
 import android.content.Context
-import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import retrofit2.Call // 新增 Call 导入
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
@@ -17,7 +17,6 @@ interface BiliApi {
     @GET("x/player/pagelist")
     suspend fun getCid(@Query("bvid") bvid: String): PageListResponse
 
-    // 注意：路径变为 wbi/playurl
     @GET("x/player/wbi/playurl")
     suspend fun getPlayUrl(
         @Query("bvid") bvid: String,
@@ -26,11 +25,10 @@ interface BiliApi {
         @Query("fnval") fnval: Int = 16
     ): PlayUrlResponse
 
-    // 获取 WBI keys 的导航接口
+    // 【修改】去掉 suspend，改为同步 Call，供拦截器内部调用
     @GET("x/web-interface/nav")
-    suspend fun getNavInfo(): NavResponse
+    fun getNavInfo(): Call<NavResponse>
 
-    // 扫码登录接口（注意这里是相对路径，因为 BASE_URL 会切换）
     @GET("x/passport-login/web/qrcode/generate")
     suspend fun getQrCode(): QrCodeResponse
 
@@ -44,7 +42,6 @@ object RetrofitClient {
 
     var appContext: Context? = null
 
-    // 缓存 WBI Keys
     private var wbiImgKey: String = ""
     private var wbiSubKey: String = ""
     private var lastKeyFetchTime: Long = 0
@@ -56,19 +53,17 @@ object RetrofitClient {
             var request = chain.request()
             val url = request.url
 
-            // 1. 如果是 passport 域名，直接放行（登录接口）
+            // 1. passport 域名直接放行
             if (url.host.contains("passport.bilibili.com")) {
                 return@addInterceptor chain.proceed(request)
             }
 
-            // 2. 对于 api.bilibili.com，需要 WBI 签名
+            // 2. api 域名进行 WBI 签名
             if (url.host.contains("api.bilibili.com")) {
-                // 如果 key 为空或过期（B站key每日轮换，这里简单起见每次检查）
                 if (wbiImgKey.isEmpty()) {
                     refreshWbiKeys()
                 }
 
-                // 对 URL 中的 query 参数进行签名
                 if (wbiImgKey.isNotEmpty()) {
                     val originalParams = mutableMapOf<String, String>()
                     for (i in 0 until url.querySize) {
@@ -78,8 +73,11 @@ object RetrofitClient {
                     val signedParams = WbiSigner.sign(originalParams, wbiImgKey, wbiSubKey)
                     
                     val newUrlBuilder = url.newBuilder()
-                    // 清除旧参数，加入签名后的参数
-                    newUrlBuilder.query(null)
+                    // 【修复】正确清除旧参数的方法
+                    for (name in url.queryParameterNames) {
+                        newUrlBuilder.removeAllQueryParameters(name)
+                    }
+                    // 添加签名后的参数
                     signedParams.forEach { (key, value) ->
                         newUrlBuilder.addQueryParameter(key, value)
                     }
@@ -101,18 +99,26 @@ object RetrofitClient {
         }
         .build()
 
-    // 刷新 WBI Keys
     private fun refreshWbiKeys() {
         try {
-            val response = api.getNavInfo().execute() // 同步执行
+            // 【修复】新建临时 Retrofit（不带拦截器），防止在拦截器内部发起请求导致死循环
+            val tempRetrofit = Retrofit.Builder()
+                .baseUrl(API_BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+            val tempApi = tempRetrofit.create(BiliApi::class.java)
+            
+            // 同步执行
+            val response = tempApi.getNavInfo().execute()
             if (response.isSuccessful) {
                 val navData = response.body()?.data
                 val imgUrl = navData?.wbiImg?.imgUrl ?: ""
                 val subUrl = navData?.wbiImg?.subUrl ?: ""
-                // 从 URL 中提取文件名作为 key
-                wbiImgKey = imgUrl.substringAfterLast("/").substringBefore(".")
-                wbiSubKey = subUrl.substringAfterLast("/").substringBefore(".")
-                lastKeyFetchTime = System.currentTimeMillis()
+                if (imgUrl.isNotEmpty() && subUrl.isNotEmpty()) {
+                    wbiImgKey = imgUrl.substringAfterLast("/").substringBefore(".")
+                    wbiSubKey = subUrl.substringAfterLast("/").substringBefore(".")
+                    lastKeyFetchTime = System.currentTimeMillis()
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -128,7 +134,6 @@ object RetrofitClient {
             .create(BiliApi::class.java)
     }
 
-    // 专用的 Passport API（登录用）
     val passportApi: BiliApi by lazy {
         Retrofit.Builder()
             .baseUrl(PASSPORT_BASE_URL)
