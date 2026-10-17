@@ -3,9 +3,8 @@ name: Build and Release Android TV APK
 on:
   push:
     branches: [ "main", "master" ]
-  workflow_dispatch: # 允许手动点击运行
+  workflow_dispatch:
 
-# 必须声明权限，否则无法创建 Release
 permissions:
   contents: write
 
@@ -22,17 +21,22 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      # 【核心】缓存签名文件。只要缓存命中，以后的每次编译都用这个不变的签名
+      - name: Cache Android Debug Keystore
+        uses: actions/cache@v3
+        with:
+          path: ~/.android/debug.keystore
+          key: ${{ runner.os }}-android-debug-keystore-v1
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 8.2
 
-      # 获取当前日期作为版本号的一部分
       - name: Get current date
         id: date
         run: echo "date=$(date +'%Y.%m.%d')" >> $GITHUB_OUTPUT
 
-      # 如果仓库没有 gradlew 就自动生成
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew || true
 
@@ -45,24 +49,17 @@ jobs:
             ./gradlew assembleDebug
           fi
 
-      # 发布 Release 发行版
       - name: Create Release and Upload APK
         uses: softprops/action-gh-release@v1
         with:
-          # 标签名，格式如：v2026.10.17-8 (带上运行次数防冲突)
           tag_name: v${{ steps.date.outputs.date }}-${{ github.run_number }}
-          # 发行版标题
           name: Release v${{ steps.date.outputs.date }}-${{ github.run_number }}
-          # 发行版说明
           body: |
             自动构建的 Android TV 版本。
             构建时间：${{ steps.date.outputs.date }} (Run ${{ github.run_number }})
             支持架构：armeabi-v7a, arm64-v8a
-          # 上传我们编译好的 APK (*匹配所有debug apk)
           files: app/build/outputs/apk/debug/*.apk
-          # 设为预览版（每日构建建议设为预览）
           prerelease: true
-          # 设置为最新版本
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
