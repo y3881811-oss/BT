@@ -2,7 +2,7 @@ name: Build Android TV APK
 
 on:
   push:
-    branches: [ "main", "master", "kotlin-native-dev" ]
+    branches: [ "main", "master" ] # 确保包含你当前所在的分支
   workflow_dispatch:
 
 jobs:
@@ -17,12 +17,23 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 注意：因为咱们没有本地电脑生成 gradlew，这里直接调用云端自带的 gradle 命令
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.2 # 强制使用与项目兼容的 Gradle 版本
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew || true
 
       - name: Build Debug APK
-        run: gradle assembleDebug
+        # 如果仓库没有 gradlew，就先执行 gradle wrapper 生成它，然后再编译
+        run: |
+          if [ -f "gradlew" ]; then
+            ./gradlew assembleDebug
+          else
+            gradle wrapper
+            ./gradlew assembleDebug
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
