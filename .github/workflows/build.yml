@@ -4,6 +4,10 @@ on:
   push:
     branches: [ "main", "master" ]
   workflow_dispatch:
+  # 【新增】定时任务 (Cron 表达式)
+  # 这里的 "0 18 * * *" 代表 UTC 时间的 18:00，即【北京时间每天凌晨 2:00】自动构建
+  schedule:
+    - cron: '0 18 * * *'
 
 permissions:
   contents: write
@@ -21,7 +25,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 【核心】缓存签名文件。只要缓存命中，以后的每次编译都用这个不变的签名
+      # 缓存签名文件 (保证每次安装包签名一致)
       - name: Cache Android Debug Keystore
         uses: actions/cache@v3
         with:
@@ -52,6 +56,7 @@ jobs:
       - name: Create Release and Upload APK
         uses: softprops/action-gh-release@v1
         with:
+          # 如果今天跑过了，会加上 run_number 区分，不会冲突
           tag_name: v${{ steps.date.outputs.date }}-${{ github.run_number }}
           name: Release v${{ steps.date.outputs.date }}-${{ github.run_number }}
           body: |
