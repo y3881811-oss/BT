@@ -6,7 +6,6 @@
     android:background="#000000"
     android:keepScreenOn="true">
 
-    <!-- 【修改】使用 Media3 的 PlayerView -->
     <androidx.media3.ui.PlayerView
         android:id="@+id/playerView"
         android:layout_width="match_parent"
