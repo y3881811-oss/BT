@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 允许网络请求 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 声明这是 TV 应用，且不需要触摸屏 -->
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="true" />
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher" 
+        android:label="BT-Kotlin"
+        android:banner="@drawable/tv_banner"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AppCompat.NoActionBar"> <!-- 使用基础 TV 主题 -->
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="landscape"> <!-- TV 强制横屏 -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <!-- 这是 TV 应用的启动器配置 -->
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                <!-- 兼容手机启动 -->
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
