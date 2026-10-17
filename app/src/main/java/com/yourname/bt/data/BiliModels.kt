@@ -9,24 +9,15 @@ data class VideoStat(val view: Int, val danmaku: Int)
 data class PageListResponse(val code: Int, val data: List<PageData>)
 data class PageData(val cid: Long)
 
-// ======== 新增：DASH 播放数据模型 ========
 data class PlayUrlResponse(val code: Int, val data: PlayUrlData)
-
-data class PlayUrlData(
-    val dash: DashData?,
-    val durl: List<Durl>? // 兼容旧版 mp4
-)
-
-data class DashData(
-    val video: List<DashMedia>,
-    val audio: List<DashMedia>?
-)
-
-data class DashMedia(
-    val id: Int, // 画质代码
-    val baseUrl: String, // 媒体流地址
-    val codecs: String,  // 编码格式
-    val bandwidth: Int
-)
-
+data class PlayUrlData(val dash: DashData?, val durl: List<Durl>? )
+data class DashData(val video: List<DashMedia>, val audio: List<DashMedia>?)
+data class DashMedia(val id: Int, val baseUrl: String, val codecs: String, val bandwidth: Int)
 data class Durl(val url: String)
+
+// ======== 新增：扫码登录模型 ========
+data class QrCodeResponse(val code: Int, val data: QrCodeData)
+data class QrCodeData(val url: String, val qrcode_key: String)
+
+data class QrPollResponse(val code: Int, val data: QrPollData)
+data class QrPollData(val url: String, val refresh_token: String, val timestamp: Long, val code: Int, val message: String)
