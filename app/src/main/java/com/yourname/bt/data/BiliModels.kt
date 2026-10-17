@@ -25,27 +25,19 @@ data class NavResponse(val code: Int, val data: NavData)
 data class NavData(val wbiImg: WbiImg?)
 data class WbiImg(val imgUrl: String, val subUrl: String)
 
-// ======== 新增：用户个人信息数据模型 ========
 data class UserInfoResponse(val code: Int, val data: UserInfoData)
-
 data class UserInfoData(
     val isLogin: Boolean,
     val mid: Long,
     val uname: String,
-    val face: String, // 头像链接
+    val face: String,
     val vip: VipInfo?,
     val level_info: LevelInfo?,
     val stat: UserStat?,
     val coins: Double?,
-    val sign: String? // 个人签名
+    val sign: String?
 )
-
 data class VipInfo(val status: Int, val label: VipLabel?)
 data class VipLabel(val text: String)
-
 data class LevelInfo(val current_level: Int, val current_exp: Int, val next_exp: Int)
-
-data class UserStat(
-    val following: Int, // 关注数
-    val follower: Int   // 粉丝数
-)
+data class UserStat(val following: Int, val follower: Int)
