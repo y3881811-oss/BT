@@ -19,8 +19,10 @@ import androidx.media3.ui.PlayerView
 import com.yourname.bt.data.DashMedia
 import com.yourname.bt.data.NetworkModule
 import com.yourname.bt.data.UserPrefs
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
+import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 class PlayerActivity : AppCompatActivity() {
@@ -53,7 +55,6 @@ class PlayerActivity : AppCompatActivity() {
     private fun loadVideoUrl(bvid: String) {
         lifecycleScope.launch {
             try {
-                // 使用 NetworkModule.api
                 val cidResponse = NetworkModule.api.getCid(bvid)
                 if (cidResponse.code != 0 || cidResponse.data.isEmpty()) {
                     showError("获取 CID 失败")
@@ -61,7 +62,23 @@ class PlayerActivity : AppCompatActivity() {
                 }
                 val cid = cidResponse.data[0].cid
 
-                val playResponse = NetworkModule.api.getPlayUrl(bvid, cid)
+                // 伪造 session 参数
+                val guestCookie = UserPrefs.getCookie(this@PlayerActivity)
+                val sessionStr = md5((guestCookie.ifEmpty { "infoc" }) + System.currentTimeMillis())
+
+                var playResponse = NetworkModule.api.getPlayUrl(bvid, cid, session = sessionStr)
+                
+                // 412 自动重试
+                if (playResponse.code == -412) {
+                    loadingBar.visibility = View.VISIBLE
+                    errorText.text = "风控拦截，正在重试..."
+                    errorText.visibility = View.VISIBLE
+                    
+                    NetworkModule.init(applicationContext) // 刷新 Key
+                    delay(1500)
+                    playResponse = NetworkModule.api.getPlayUrl(bvid, cid, session = sessionStr)
+                }
+
                 if (playResponse.code != 0) {
                     showError("获取播放地址失败: ${playResponse.code}")
                     return@launch
@@ -73,7 +90,6 @@ class PlayerActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                // 寻找 AVC 编码
                 val videoStream = dash.video.firstOrNull { it.codecs.contains("avc") } 
                     ?: dash.video.firstOrNull() 
 
@@ -83,12 +99,18 @@ class PlayerActivity : AppCompatActivity() {
                 }
 
                 loadingBar.visibility = View.GONE
+                errorText.visibility = View.GONE
                 startPlay(videoStream, dash.audio?.firstOrNull())
 
             } catch (e: Exception) {
                 showError("网络异常: ${e.message}")
             }
         }
+    }
+
+    private fun md5(input: String): String {
+        val md = MessageDigest.getInstance("MD5")
+        return md.digest(input.toByteArray()).joinToString("") { "%02x".format(it) }
     }
 
     private fun startPlay(video: DashMedia, audio: DashMedia?) {
@@ -99,8 +121,7 @@ class PlayerActivity : AppCompatActivity() {
                 .followRedirects(true)
                 .build()
 
-            // 为 ExoPlayer 下载视频流时注入登录 Cookie
-            val localCookie = UserPrefs.getCookie(this)
+            val localCookie = UserPrefs.getCookie(this).ifEmpty { "buvid3=infoc" }
 
             val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
                 .setDefaultRequestProperties(mapOf(
@@ -115,7 +136,6 @@ class PlayerActivity : AppCompatActivity() {
                 .build()
             playerView.player = exoPlayer
 
-            // 清理 URL 转义
             val finalVideoUrl = video.baseUrl.replace("\\u0026", "&")
             val finalAudioUrl = audio?.baseUrl?.replace("\\u0026", "&")
 
