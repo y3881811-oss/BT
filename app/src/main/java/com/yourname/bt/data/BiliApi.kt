@@ -1,5 +1,6 @@
 package com.yourname.bt.data
 
+import android.content.Context
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import retrofit2.Retrofit
@@ -15,18 +16,28 @@ interface BiliApi {
     @GET("x/player/pagelist")
     suspend fun getCid(@Query("bvid") bvid: String): PageListResponse
 
-    // 【修改】fnval=16 强制请求 DASH，qn=64 请求 720P
     @GET("x/player/playurl")
     suspend fun getPlayUrl(
         @Query("bvid") bvid: String,
         @Query("cid") cid: Long,
-        @Query("qn") qn: Int = 64,
+        @Query("qn") qn: Int = 80, // 【升级】登录后请求 1080P
         @Query("fnval") fnval: Int = 16
     ): PlayUrlResponse
+
+    // 申请扫码
+    @GET("x/passport-login/web/qrcode/generate")
+    suspend fun getQrCode(): QrCodeResponse
+
+    // 轮询扫码状态
+    @GET("x/passport-login/web/qrcode/poll")
+    suspend fun pollQrCode(@Query("qrcode_key") key: String): QrPollResponse
 }
 
 object RetrofitClient {
     private const val BASE_URL = "https://api.bilibili.com/"
+    
+    // 必须全局保存 context 以读取 Cookie
+    var appContext: Context? = null
 
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -35,8 +46,14 @@ object RetrofitClient {
             val original: Request = chain.request()
             val requestBuilder = original.newBuilder()
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                .header("Referer", "https://www.bilibili.com/")
-                .header("Origin", "https://www.bilibili.com")
+                .header("Referer", "https://www.bilibili.com")
+            
+            // 【核心】从本地读取登录后的 Cookie
+            val savedCookie = if (appContext != null) UserPrefs.getCookie(appContext!!) else ""
+            if (savedCookie.isNotEmpty()) {
+                requestBuilder.header("Cookie", savedCookie)
+            }
+            
             chain.proceed(requestBuilder.build())
         }
         .build()
