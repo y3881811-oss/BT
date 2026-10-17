@@ -30,7 +30,6 @@ object NetworkModule {
         fetchWbiKeys()
     }
 
-    // 1. 动态获取设备指纹（绕过风控的关键）
     private fun fetchBuvid() {
         Thread {
             try {
@@ -52,7 +51,6 @@ object NetworkModule {
         }.start()
     }
 
-    // 2. 获取 WBI 签名密钥
     private fun fetchWbiKeys() {
         Thread {
             try {
@@ -86,7 +84,6 @@ object NetworkModule {
         return "buvid3=$b3; buvid4=$realBuvid4; b_nut=${System.currentTimeMillis() / 1000};"
     }
 
-    // 3. 核心拦截器：统一请求头 + WBI 签名
     private fun createInterceptor(): Interceptor {
         return Interceptor { chain ->
             var request = chain.request()
@@ -98,7 +95,6 @@ object NetworkModule {
                 .header("Origin", "https://www.bilibili.com")
                 .header("X-Requested-With", "XMLHttpRequest")
 
-            // 仅对 wbi 路径签名
             if (url.host.contains("api.bilibili.com") && url.encodedPath.contains("wbi")) {
                 if (wbiImgKey.isEmpty()) {
                     fetchWbiKeys()
@@ -121,7 +117,6 @@ object NetworkModule {
         }
     }
 
-    // 4. 构建带日志和拦截器的 Client
     private fun createClient(): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY }
         return baseClient.newBuilder()
